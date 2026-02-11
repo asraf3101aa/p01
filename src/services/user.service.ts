@@ -2,9 +2,14 @@ import { db } from '../db';
 import { users } from '../db/schema';
 import { NewUser, User } from '../models/user.model';
 import { eq, or, and } from 'drizzle-orm';
+import bcrypt from 'bcrypt';
 
 export const createUser = async (user: NewUser): Promise<User> => {
-  const [createdUser] = await db.insert(users).values(user).returning();
+  const hashedPassword = await bcrypt.hash(user.password, 10);
+  const [createdUser] = await db
+    .insert(users)
+    .values({ ...user, password: hashedPassword })
+    .returning();
   if (!createdUser) {
     throw new Error('Failed to create user');
   }

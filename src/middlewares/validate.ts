@@ -1,36 +1,43 @@
 import { Request, Response, NextFunction } from 'express';
-import { status as httpStatus } from 'http-status';
-import { ZodType, ZodError } from 'zod';
-import ApiError from '../utils/ApiError';
+import { ZodObject, ZodError } from 'zod';
+import httpStatus from 'http-status';
 
-const validate = (schema: ZodType<any>) => async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const validData = await schema.parseAsync({
-            body: req.body,
-            query: req.query,
-            params: req.params,
-        });
+const validate = (schema: { body?: ZodObject<any>; query?: ZodObject<any>; params?: ZodObject<any> }) =>
+    (req: Request, res: Response, next: NextFunction) => {
+        try {
+            if (schema.body) {
+                req.body = schema.body.parse(req.body);
+            }
+            if (schema.query) {
+                req.query = schema.query.parse(req.query) as any;
+            }
+            if (schema.params) {
+                req.params = schema.params.parse(req.params) as any;
+            }
+            return next();
+        } catch (error) {
+            if (error instanceof ZodError) {
+                const errors: Record<string, string[]> = {};
 
-        // Assign validated data back to req to ensure type safety and cleaned data
-        Object.assign(req, validData);
+                error.issues.forEach((issue) => {
+                    const key = issue.path.join('.') || 'root';
 
-        return next();
-    } catch (error) {
-        if (error instanceof ZodError) {
-            const formattedErrors: Record<string, string[]> = {};
+                    if (!errors[key]) {
+                        errors[key] = [];
+                    }
 
-            (error as any).errors.forEach((e: any) => {
-                const key = e.path.join('.') || 'root';
-                if (!formattedErrors[key]) {
-                    formattedErrors[key] = [];
-                }
-                formattedErrors[key].push(e.message);
-            });
+                    // Add the message to the list for this key
+                    errors[key].push(issue.message);
+                });
 
-            return next(new ApiError(httpStatus.BAD_REQUEST, 'Validation Error', formattedErrors));
+                return res.status(httpStatus.BAD_REQUEST).send({
+                    status: 'error',
+                    message: 'Validation failed',
+                    errors,
+                });
+            }
+            return next(error);
         }
-        return next(error);
-    }
-};
+    };
 
 export default validate;

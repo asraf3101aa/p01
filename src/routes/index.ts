@@ -1,11 +1,12 @@
 import express from 'express';
+import authRoute from './auth.route';
 
 const router = express.Router();
 
 const defaultRoutes = [
     {
-        path: '/health',
-        route: healthRoute,
+        path: '/auth',
+        route: authRoute,
     },
 ];
 
