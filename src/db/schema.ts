@@ -70,3 +70,36 @@ export const userRoles = sqliteTable('user_roles', {
     .references(() => roles.id, { onDelete: 'cascade' })
     .notNull(),
 });
+
+export const threads = sqliteTable('threads', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  title: text('title').notNull(),
+  description: text('description').notNull(),
+  authorId: integer('author_id')
+    .references(() => users.id, { onDelete: 'cascade' })
+    .notNull(),
+  isDeleted: integer('is_deleted', { mode: 'boolean' }).default(false).notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .default(sql`(unixepoch())`)
+    .notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .default(sql`(unixepoch())`)
+    .$onUpdate(() => new Date()),
+});
+
+export const comments = sqliteTable('comments', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  content: text('content').notNull(),
+  threadId: integer('thread_id')
+    .references(() => threads.id, { onDelete: 'cascade' })
+    .notNull(),
+  authorId: integer('author_id')
+    .references(() => users.id, { onDelete: 'cascade' })
+    .notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .default(sql`(unixepoch())`)
+    .notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .default(sql`(unixepoch())`)
+    .$onUpdate(() => new Date()),
+});
