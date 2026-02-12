@@ -1,19 +1,38 @@
 import { db } from '../db';
-import { users } from '../db/schema';
+import { users, roles, userRoles } from '../db/schema';
 import { NewUser, User } from '../models/user.model';
 import { eq, or, and } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
+import { ROLES } from '../config/rbac.config';
 
-export const createUser = async (user: NewUser): Promise<User> => {
+export const createUser = async (user: NewUser): Promise<User | null> => {
   const hashedPassword = await bcrypt.hash(user.password, 10);
-  const [createdUser] = await db
-    .insert(users)
-    .values({ ...user, password: hashedPassword })
-    .returning();
-  if (!createdUser) {
-    throw new Error('Failed to create user');
-  }
-  return createdUser;
+
+  return await db.transaction(async (tx) => {
+    const [createdUser] = await tx
+      .insert(users)
+      .values({ ...user, password: hashedPassword })
+      .returning();
+
+    if (!createdUser) {
+      return null;
+    }
+
+    const [userRole] = await tx
+      .select()
+      .from(roles)
+      .where(eq(roles.name, ROLES.USER.name))
+      .limit(1);
+
+    if (userRole) {
+      await tx.insert(userRoles).values({
+        userId: createdUser.id,
+        roleId: userRole.id,
+      });
+    }
+
+    return createdUser;
+  });
 };
 
 export const getUserByIdentifier = async (

@@ -4,4 +4,5 @@ export * as authService from './auth.service';
 export * as tokenService from './token.service';
 export * as rbacService from './rbac.service';
 export * as threadService from './thread.service';
+export * as notificationService from './notification.service';
 

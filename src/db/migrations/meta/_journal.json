@@ -8,6 +8,13 @@
       "when": 1770810485479,
       "tag": "0000_add_users_table",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1770904024787,
+      "tag": "0001_quick_odin",
+      "breakpoints": true
     }
   ]
 }

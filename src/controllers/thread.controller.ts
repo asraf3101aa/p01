@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import catchAsync from '../utils/catchAsync';
-import { threadService } from '../services';
+import { threadService, notificationService } from '../services';
 import ApiResponse from '../utils/ApiResponse';
 
 export const createThread = catchAsync(async (req: Request, res: Response) => {
@@ -8,6 +8,16 @@ export const createThread = catchAsync(async (req: Request, res: Response) => {
         ...req.body,
         authorId: req.user.id,
     });
+
+    if (!thread) {
+        throw new Error('Failed to create thread');
+    }
+
+    await threadService.subscribeToThread({
+        threadId: thread.id,
+        userId: req.user.id,
+    });
+
     ApiResponse.created(res, thread, 'Thread created successfully');
 });
 
@@ -27,11 +37,32 @@ export const getThread = catchAsync(async (req: Request, res: Response) => {
 
 export const createComment = catchAsync(async (req: Request, res: Response) => {
     const threadId = parseInt(req.params['id'] as string, 10);
+    const thread = await threadService.getThreadById(threadId);
+
+    if (!thread) {
+        return ApiResponse.notFound(res, 'Thread not found');
+    }
+
     const comment = await threadService.createComment({
         ...req.body,
         threadId: threadId,
         authorId: req.user.id,
     });
+
+    // Notify all subscribers except the commenter
+    // (This includes the author because they are now auto-subscribed on thread creation)
+    const subscribers = await threadService.getThreadSubscribers(threadId);
+    for (const sub of subscribers) {
+        if (sub.userId !== req.user.id) {
+            await notificationService.sendNotification(
+                sub.userId,
+                'New comment on thread',
+                `${req.user.username} commented on "${thread.title}"`,
+                'thread_comment'
+            );
+        }
+    }
+
     return ApiResponse.created(res, comment, 'Comment added successfully');
 });
 

@@ -1,8 +1,10 @@
 import { Server } from 'http';
 import app from './app';
-import config from './config/config';
+import config from './config';
 import logger from './config/logger';
 import { seedRBAC } from './services/rbac.service';
+
+import { notificationWorker } from './workers/notification.worker';
 
 let server: Server;
 
@@ -22,7 +24,10 @@ const startServer = async () => {
 
 startServer();
 
-const exitHandler = () => {
+const exitHandler = async () => {
+    if (notificationWorker) {
+        await notificationWorker.close();
+    }
     if (server) {
         server.close(() => {
             logger.info('Server closed');
@@ -32,6 +37,7 @@ const exitHandler = () => {
         process.exit(1);
     }
 };
+
 
 const unexpectedErrorHandler = (error: Error) => {
     logger.error(error);

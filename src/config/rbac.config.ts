@@ -5,6 +5,8 @@ export enum Resource {
     DEVICE = 'device',
     THREAD = 'thread',
     COMMENT = 'comment',
+    NOTIFICATION = 'notification',
+    PREFERENCE = 'preference',
 }
 
 export enum Action {
@@ -47,6 +49,10 @@ export const ROLES = {
             permissions.comment.read,
             permissions.comment.create,
             permissions.thread.subscribe,
+            permissions.notification.read,
+            permissions.notification.update,
+            permissions.preference.read,
+            permissions.preference.update,
         ],
     },
 } as const;

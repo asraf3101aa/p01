@@ -116,3 +116,31 @@ export const threadSubscribers = sqliteTable('thread_subscribers', {
     .default(sql`(unixepoch())`)
     .notNull(),
 });
+
+export const notificationPreferences = sqliteTable('notification_preferences', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id')
+    .references(() => users.id, { onDelete: 'cascade' })
+    .notNull()
+    .unique(),
+  emailEnabled: integer('email_enabled', { mode: 'boolean' }).default(true).notNull(),
+  inAppEnabled: integer('in_app_enabled', { mode: 'boolean' }).default(true).notNull(),
+  smsEnabled: integer('sms_enabled', { mode: 'boolean' }).default(true).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .default(sql`(unixepoch())`)
+    .$onUpdate(() => new Date()),
+});
+
+export const notifications = sqliteTable('notifications', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id')
+    .references(() => users.id, { onDelete: 'cascade' })
+    .notNull(),
+  title: text('title').notNull(),
+  message: text('message').notNull(),
+  isRead: integer('is_read', { mode: 'boolean' }).default(false).notNull(),
+  type: text('type').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .default(sql`(unixepoch())`)
+    .notNull(),
+});

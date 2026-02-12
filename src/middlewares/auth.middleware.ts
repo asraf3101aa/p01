@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import config from '../config/config';
+import config from '../config';
 import { db } from '../db';
 import { users, userRoles, roles, rolePermissions, permissions } from '../db/schema';
 import { eq } from 'drizzle-orm';
@@ -24,10 +24,10 @@ const auth = (...requiredPermissions: Permission[]) =>
         const authHeader = req.headers.authorization;
 
         if (!authHeader?.startsWith('Bearer ')) {
-            return ApiResponse.unauthorized(res, 'Please provide a valid token');
+            return ApiResponse.unauthorized(res, 'Please provide a valid access token');
         }
 
-        const token = authHeader.split(' ')[1];
+        const token = authHeader.split(' ')[1] ?? "";
 
         try {
             const payload = jwt.verify(token, config.jwt.secret) as { sub: string };
@@ -54,11 +54,12 @@ const auth = (...requiredPermissions: Permission[]) =>
                 .leftJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
                 .where(eq(users.id, userId));
 
-            if (!userRolesData.length || !userRolesData[0].user) {
+            const firstResult = userRolesData[0];
+            if (!firstResult || !firstResult.user) {
                 return ApiResponse.unauthorized(res, 'User not found');
             }
 
-            const user = userRolesData[0].user;
+            const user = firstResult.user;
             const userRolesNames = [...new Set(userRolesData.map((r) => r.roleName).filter(Boolean).map(String))];
             const userPermissions = [...new Set(userRolesData.map((r) => r.permissionName).filter(Boolean).map(String))];
 
@@ -75,7 +76,7 @@ const auth = (...requiredPermissions: Permission[]) =>
                 }
             }
 
-            next();
+            return next();
         } catch (error) {
             const message = error instanceof jwt.TokenExpiredError ? 'Token expired' : 'Invalid token';
             return ApiResponse.unauthorized(res, message);

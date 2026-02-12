@@ -97,3 +97,9 @@ export const getSubscription = async (threadId: number, userId: number) => {
         .limit(1);
     return subscription;
 };
+
+export const getThreadSubscribers = async (threadId: number) => {
+    return db.select()
+        .from(threadSubscribers)
+        .where(eq(threadSubscribers.threadId, threadId));
+};

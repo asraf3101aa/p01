@@ -2,13 +2,12 @@ import express from 'express';
 import auth from '../middlewares/auth.middleware';
 import { userController } from '../controllers';
 import { permissions as p } from '../config/rbac.config';
+import validate from '../middlewares/validate';
+import { userValidation } from '../validations';
 
 const router = express.Router();
 
 router.get('/profile', auth(p.user.read), userController.getProfile);
-
-router.get('/list', auth(p.user.read), userController.getUsers);
-
-router.get('/admin-only', auth(p.role.read), userController.getAdminContent);
+router.get('/:id/profile', auth(p.user.read), validate(userValidation.getProfileById), userController.getProfileById);
 
 export default router;
