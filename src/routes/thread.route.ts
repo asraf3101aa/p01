@@ -13,4 +13,8 @@ router.get('/:id', auth(p.thread.read), threadController.getThread);
 
 router.post('/:id/comments', auth(p.comment.create), threadController.createComment);
 
+router.route('/:id/subscribe')
+    .post(auth(p.thread.subscribe), threadController.subscribe)
+    .delete(auth(p.thread.subscribe), threadController.unsubscribe);
+
 export default router;

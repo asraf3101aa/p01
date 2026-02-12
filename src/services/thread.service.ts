@@ -1,6 +1,6 @@
 import { db } from '../db';
-import { threads, comments, users } from '../db/schema';
-import { NewThread, NewComment } from '../models/thread.model';
+import { threads, comments, users, threadSubscribers } from '../db/schema';
+import { NewThread, NewComment, NewThreadSubscriber } from '../models/thread.model';
 import { eq, and, desc } from 'drizzle-orm';
 
 export const createThread = async (thread: NewThread) => {
@@ -69,4 +69,31 @@ export const getThreadById = async (id: number) => {
 export const createComment = async (comment: NewComment) => {
     const [newComment] = await db.insert(comments).values(comment).returning();
     return newComment;
+};
+
+export const subscribeToThread = async (subscription: NewThreadSubscriber) => {
+    const [newSubscription] = await db.insert(threadSubscribers).values(subscription).returning();
+    return newSubscription;
+};
+
+export const unsubscribeFromThread = async (threadId: number, userId: number) => {
+    await db.delete(threadSubscribers).where(
+        and(
+            eq(threadSubscribers.threadId, threadId),
+            eq(threadSubscribers.userId, userId)
+        )
+    );
+};
+
+export const getSubscription = async (threadId: number, userId: number) => {
+    const [subscription] = await db.select()
+        .from(threadSubscribers)
+        .where(
+            and(
+                eq(threadSubscribers.threadId, threadId),
+                eq(threadSubscribers.userId, userId)
+            )
+        )
+        .limit(1);
+    return subscription;
 };

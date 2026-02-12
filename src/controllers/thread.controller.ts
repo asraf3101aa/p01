@@ -35,3 +35,25 @@ export const createComment = catchAsync(async (req: Request, res: Response) => {
     return ApiResponse.created(res, comment, 'Comment added successfully');
 });
 
+export const subscribe = catchAsync(async (req: Request, res: Response) => {
+    const threadId = parseInt(req.params['id'] as string, 10);
+    const userId = req.user.id;
+
+    const existing = await threadService.getSubscription(threadId, userId);
+    if (existing) {
+        return ApiResponse.success(res, null, 'Already subscribed');
+    }
+
+    await threadService.subscribeToThread({ threadId, userId });
+    return ApiResponse.success(res, null, 'Subscribed successfully');
+});
+
+export const unsubscribe = catchAsync(async (req: Request, res: Response) => {
+    const threadId = parseInt(req.params['id'] as string, 10);
+    const userId = req.user.id;
+
+    await threadService.unsubscribeFromThread(threadId, userId);
+    return ApiResponse.success(res, null, 'Unsubscribed successfully');
+});
+
+

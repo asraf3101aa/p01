@@ -103,3 +103,16 @@ export const comments = sqliteTable('comments', {
     .default(sql`(unixepoch())`)
     .$onUpdate(() => new Date()),
 });
+
+export const threadSubscribers = sqliteTable('thread_subscribers', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  threadId: integer('thread_id')
+    .references(() => threads.id, { onDelete: 'cascade' })
+    .notNull(),
+  userId: integer('user_id')
+    .references(() => users.id, { onDelete: 'cascade' })
+    .notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .default(sql`(unixepoch())`)
+    .notNull(),
+});

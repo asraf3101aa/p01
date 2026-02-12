@@ -12,6 +12,7 @@ export enum Action {
     CREATE = 'create',
     UPDATE = 'update',
     DELETE = 'delete',
+    SUBSCRIBE = 'subscribe',
 }
 
 export type Permission = `${Resource}_${Action}`;
@@ -45,6 +46,7 @@ export const ROLES = {
             permissions.thread.create,
             permissions.comment.read,
             permissions.comment.create,
+            permissions.thread.subscribe,
         ],
     },
 } as const;
