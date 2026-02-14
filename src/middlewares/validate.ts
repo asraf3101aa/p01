@@ -6,7 +6,9 @@ const validate = (schema: { body?: ZodObject<any>; query?: ZodObject<any>; param
     (req: Request, res: Response, next: NextFunction) => {
         try {
             if (schema.body) {
-                req.body = schema.body.parse(req.body);
+                const parsedBody = schema.body.parse(req.body);
+                Object.keys(req.body).forEach((key) => delete (req.body as any)[key]);
+                Object.assign(req.body, parsedBody);
             }
             if (schema.query) {
                 const parsedQuery = schema.query.parse(req.query);
