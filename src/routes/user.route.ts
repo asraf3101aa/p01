@@ -7,7 +7,6 @@ import { userValidation } from '../validations';
 
 const router = express.Router();
 
-router.get('/profile', auth(p.user.read), userController.getProfile);
 router.get('/:id/profile', auth(p.user.read), validate(userValidation.getProfileById), userController.getProfileById);
 
 export default router;

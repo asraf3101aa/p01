@@ -17,3 +17,15 @@ export const login = {
         password: z.string("Password is required"),
     }),
 };
+
+export const logout = {
+    body: z.object({
+        refreshToken: z.string("Refresh token is required"),
+    }),
+};
+
+export const refreshTokens = {
+    body: z.object({
+        refreshToken: z.string("Refresh token is required"),
+    }),
+};

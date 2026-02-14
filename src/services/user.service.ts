@@ -54,7 +54,12 @@ export const getUserByIdentifier = async (
 };
 
 export const getUserById = async (id: number): Promise<User | undefined> => {
-  const [user] = await db.select().from(users).where(eq(users.id, id)).limit(1);
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(and(eq(users.id, id), eq(users.isDeleted, false)))
+    .limit(1);
+
   return user;
 };
 

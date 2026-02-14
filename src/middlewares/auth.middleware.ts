@@ -30,7 +30,7 @@ const auth = (...requiredPermissions: Permission[]) =>
         const token = authHeader.split(' ')[1] ?? "";
 
         try {
-            const payload = jwt.verify(token, config.jwt.secret) as { sub: string };
+            const payload = jwt.verify(token, config.jwt.accessTokenSecret) as { sub: string };
 
             if (!payload.sub) {
                 return ApiResponse.unauthorized(res);

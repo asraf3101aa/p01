@@ -20,3 +20,18 @@ export const login = catchAsync(async (req, res) => {
     const tokens = await tokenService.generateAuthTokens(user.id);
     ApiResponse.success(res, { user, tokens }, 'Login successful');
 });
+
+export const refreshTokens = catchAsync(async (req, res) => {
+    const { refreshToken } = req.body;
+    const tokens = await authService.refreshAuth(refreshToken);
+    if (!tokens) {
+        ApiResponse.fail(res, 'Invalid refresh token', httpStatus.UNAUTHORIZED);
+        return;
+    }
+    ApiResponse.success(res, { ...tokens }, 'Tokens refreshed successfully');
+});
+
+export const getAuthUserProfile = catchAsync(async (req, res) => {
+    ApiResponse.success(res, req.user, 'User profile fetched successfully');
+});
+

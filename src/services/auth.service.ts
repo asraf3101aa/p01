@@ -1,4 +1,5 @@
-import { userService } from ".";
+import { userService, tokenService } from ".";
+import config from "../config";
 import { User } from "../models/user.model";
 import bcrypt from 'bcrypt';
 
@@ -19,4 +20,18 @@ export const loginUserWithEmailOrUsernameAndPassword = async (
     }
 
     return user;
+};
+
+export const refreshAuth = async (refreshToken: string) => {
+    try {
+        const payload = await tokenService.verifyToken(refreshToken, config.jwt.refreshTokenSecret);
+        const userId = Number(payload.sub);
+        const user = await userService.getUserById(userId);
+        if (!user) {
+            return null;
+        }
+        return tokenService.generateAuthTokens(userId);
+    } catch (error) {
+        return null;
+    }
 };
