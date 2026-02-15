@@ -3,7 +3,8 @@ import { z } from 'zod';
 export const createThread = {
     body: z.object({
         title: z.string('Title is required').min(5, 'Title must be at least 5 characters').max(255),
-        description: z.string().optional(),
+        content: z.string().optional(),
+        imagePaths: z.array(z.string().max(500, "Image path too long")).optional(),
     }),
 };
 

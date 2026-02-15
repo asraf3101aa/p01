@@ -85,4 +85,3 @@ export const sendNotification = async (userId: number, title: string, message: s
         return { ...serviceError(error, 'Failed to send notification') };
     }
 };
-

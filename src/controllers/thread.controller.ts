@@ -17,20 +17,34 @@ export const createThread = catchAsync(async (req, res) => {
 export const getThreads = catchAsync(async (req, res) => {
     const page = parseInt(req.query['page'] as string, 10) || 1;
     const limit = parseInt(req.query['limit'] as string, 10) || 10;
-    const { results, page: p, limit: l, totalPages, totalResults, message } = await threadService.getThreads(page, limit);
-    return ApiResponse.success(res, { results, page: p, limit: l, totalPages, totalResults }, message);
+    const { results, totalResults, message } = await threadService.getThreads(page, limit, req.user?.id);
+    if (!results) {
+        return ApiResponse.error(res, message || 'Something went wrong');
+    }
+    return ApiResponse.paginate(res, results, {
+        totalItems: totalResults || 0,
+        itemsPerPage: limit,
+        currentPage: page
+    }, message);
 });
 
 export const getAuthUserThreads = catchAsync(async (req, res) => {
     const page = parseInt(req.query['page'] as string, 10) || 1;
     const limit = parseInt(req.query['limit'] as string, 10) || 10;
-    const { results, page: p, limit: l, totalPages, totalResults, message } = await threadService.getThreadsByAuthorId(req.user.id, page, limit);
-    return ApiResponse.success(res, { results, page: p, limit: l, totalPages, totalResults }, message);
+    const { results, totalResults, message } = await threadService.getThreadsByAuthorId(req.user.id, page, limit, req.user.id);
+    if (!results) {
+        return ApiResponse.error(res, message || 'Failed to fetch threads');
+    }
+    return ApiResponse.paginate(res, results, {
+        totalItems: totalResults || 0,
+        itemsPerPage: limit,
+        currentPage: page
+    }, message);
 });
 
 export const getThread = catchAsync(async (req, res) => {
     const threadId = parseInt(req.params['id'] as string, 10);
-    const { thread, message } = await threadService.getThreadById(threadId);
+    const { thread, message } = await threadService.getThreadById(threadId, req.user?.id);
     if (!thread) {
         return ApiResponse.notFound(res, message || 'Thread not found');
     }
@@ -94,4 +108,23 @@ export const unsubscribe = catchAsync(async (req, res) => {
     return ApiResponse.success(res, null, message);
 });
 
+export const like = catchAsync(async (req, res) => {
+    const threadId = parseInt(req.params['id'] as string, 10);
+    const userId = req.user.id;
 
+    const { like } = await threadService.getLike(threadId, userId);
+    if (like) {
+        return ApiResponse.success(res, null, 'Already liked');
+    }
+
+    const { message } = await threadService.likeThread({ threadId, userId });
+    return ApiResponse.success(res, null, message);
+});
+
+export const unlike = catchAsync(async (req, res) => {
+    const threadId = parseInt(req.params['id'] as string, 10);
+    const userId = req.user.id;
+
+    const { message } = await threadService.unlikeThread(threadId, userId);
+    return ApiResponse.success(res, null, message);
+});

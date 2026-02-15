@@ -4,17 +4,17 @@ import ApiResponse from '../utils/ApiResponse';
 
 export const getPreferences = catchAsync(async (req, res) => {
     const { prefs, message } = await notificationService.getPreferences(req.user.id);
-    ApiResponse.success(res, prefs, message);
+    return ApiResponse.success(res, prefs, message);
 });
 
 export const updatePreferences = catchAsync(async (req, res) => {
     const { prefs, message } = await notificationService.updatePreferences(req.user.id, req.body);
-    ApiResponse.success(res, prefs, message);
+    return ApiResponse.success(res, prefs, message);
 });
 
 export const getNotifications = catchAsync(async (req, res) => {
     const { notifications, message } = await notificationService.getNotifications(req.user.id);
-    ApiResponse.success(res, notifications, message);
+    return ApiResponse.success(res, notifications, message);
 });
 
 export const markAsRead = catchAsync(async (req, res) => {

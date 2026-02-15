@@ -1,22 +1,33 @@
 import { db } from '../db';
-import { threads, comments, users, threadSubscribers } from '../db/schema';
-import { NewThread, NewComment, NewThreadSubscriber } from '../models/thread.model';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { threads, comments, threadSubscribers, threadLikes, threadImages } from '../db/schema';
+import { NewThread, NewComment, NewThreadSubscriber, NewThreadLike } from '../models/thread.model';
+import { eq, and, desc, count, inArray } from 'drizzle-orm';
 import { serviceError } from '../utils/serviceError';
 
-export const createThread = async (thread: NewThread) => {
+export const createThread = async (thread: NewThread & { imagePaths?: string[] }) => {
     try {
+        const { imagePaths, ...threadDataWithPossibleId } = thread;
+        const { id, ...threadData } = threadDataWithPossibleId as any;
         const newThread = await db.transaction(async (trx) => {
             const [createdThread] = await trx.insert(threads)
-                .values({ ...thread })
+                .values({ ...threadData })
                 .returning();
 
             if (!createdThread) {
                 throw new Error("Failed to create thread");
             }
 
+            if (imagePaths && imagePaths.length > 0) {
+                await trx.insert(threadImages).values(
+                    imagePaths.map(path => ({
+                        path,
+                        threadId: createdThread.id
+                    }))
+                );
+            }
+
             const [subscription] = await trx.insert(threadSubscribers)
-                .values({ threadId: createdThread.id, userId: thread.authorId })
+                .values({ threadId: createdThread.id, userId: threadData.authorId })
                 .returning();
 
             if (!subscription) {
@@ -32,127 +43,207 @@ export const createThread = async (thread: NewThread) => {
     }
 };
 
-export const getThreads = async (page: number = 1, limit: number = 10) => {
+export const getThreads = async (page: number = 1, limit: number = 10, currentUserId?: number) => {
     try {
         const offset = (page - 1) * limit;
 
-        const results = await db.select({
-            id: threads.id,
-            title: threads.title,
-            description: threads.description,
-            createdAt: threads.createdAt,
-            author: {
-                id: users.id,
-                username: users.username,
-                firstName: users.firstName,
-                lastName: users.lastName,
-            }
-        })
-            .from(threads)
-            .innerJoin(users, eq(threads.authorId, users.id))
-            .where(eq(threads.isDeleted, false))
-            .orderBy(desc(threads.createdAt))
-            .limit(limit)
-            .offset(offset);
+        const threadsData = await db.query.threads.findMany({
+            where: eq(threads.isDeleted, false),
+            with: {
+                author: {
+                    columns: {
+                        id: true,
+                        username: true,
+                        firstName: true,
+                        lastName: true,
+                        isActive: true,
+                        isDeleted: true,
+                    }
+                },
+                images: true,
+            },
+            orderBy: desc(threads.createdAt),
+            limit,
+            offset,
+        });
 
-        // Get total count for pagination metadata
-        const countResult = await db.select({ count: sql<number>`count(*)` })
-            .from(threads)
-            .where(eq(threads.isDeleted, false));
-        const count = countResult[0]?.count ?? 0;
+        if (threadsData.length === 0) {
+            return { results: [], page, limit, totalPages: 0, totalResults: 0, message: "Threads fetched successfully" };
+        }
+
+        const threadIds = threadsData.map(t => t.id);
+
+        const [likeCounts, commentCounts, subCounts, userLikes, userSubs, countResult] = await Promise.all([
+            db.select({ threadId: threadLikes.threadId, count: count() })
+                .from(threadLikes)
+                .where(inArray(threadLikes.threadId, threadIds))
+                .groupBy(threadLikes.threadId),
+            db.select({ threadId: comments.threadId, count: count() })
+                .from(comments)
+                .where(inArray(comments.threadId, threadIds))
+                .groupBy(comments.threadId),
+            db.select({ threadId: threadSubscribers.threadId, count: count() })
+                .from(threadSubscribers)
+                .where(inArray(threadSubscribers.threadId, threadIds))
+                .groupBy(threadSubscribers.threadId),
+            currentUserId
+                ? db.select({ threadId: threadLikes.threadId })
+                    .from(threadLikes)
+                    .where(and(eq(threadLikes.userId, currentUserId), inArray(threadLikes.threadId, threadIds)))
+                : Promise.resolve([]),
+            currentUserId
+                ? db.select({ threadId: threadSubscribers.threadId })
+                    .from(threadSubscribers)
+                    .where(and(eq(threadSubscribers.userId, currentUserId), inArray(threadSubscribers.threadId, threadIds)))
+                : Promise.resolve([]),
+            db.select({ count: count() })
+                .from(threads)
+                .where(eq(threads.isDeleted, false))
+        ]);
+
+        const likeCountMap = new Map(likeCounts.map(c => [c.threadId, c.count]));
+        const commentCountMap = new Map(commentCounts.map(c => [c.threadId, c.count]));
+        const subCountMap = new Map(subCounts.map(c => [c.threadId, c.count]));
+        const userLikeSet = new Set(userLikes.map(l => l.threadId));
+        const userSubSet = new Set(userSubs.map(s => s.threadId));
+
+        const results = threadsData.map(thread => ({
+            ...thread,
+            likeCount: likeCountMap.get(thread.id) || 0,
+            commentCount: commentCountMap.get(thread.id) || 0,
+            subscriberCount: subCountMap.get(thread.id) || 0,
+            isLiked: userLikeSet.has(thread.id),
+            isSubscribed: userSubSet.has(thread.id),
+        }));
+
+        const totalResults = countResult[0]?.count ?? 0;
 
         return {
             results,
             page,
             limit,
-            totalPages: Math.ceil(count / limit),
-            totalResults: count,
+            totalPages: Math.ceil(totalResults / limit),
+            totalResults,
             message: "Threads fetched successfully"
         };
     } catch (error: any) {
-        return { results: [], ...serviceError(error, "Failed to fetch threads") };
+        return { results: null, totalResults: 0, ...serviceError(error, "Failed to fetch threads") };
     }
 };
 
-export const getThreadsByAuthorId = async (authorId: number, page: number = 1, limit: number = 10) => {
+export const getThreadsByAuthorId = async (authorId: number, page: number = 1, limit: number = 10, currentUserId?: number) => {
     try {
         const offset = (page - 1) * limit;
 
-        const results = await db.select({
-            id: threads.id,
-            title: threads.title,
-            description: threads.description,
-            createdAt: threads.createdAt,
-            author: {
-                id: users.id,
-                username: users.username,
-                firstName: users.firstName,
-                lastName: users.lastName,
-            }
-        })
-            .from(threads)
-            .innerJoin(users, eq(threads.authorId, users.id))
-            .where(and(eq(threads.authorId, authorId), eq(threads.isDeleted, false)))
-            .orderBy(desc(threads.createdAt))
-            .limit(limit)
-            .offset(offset);
+        const threadsData = await db.query.threads.findMany({
+            where: and(eq(threads.authorId, authorId), eq(threads.isDeleted, false)),
+            with: {
+                author: {
+                    columns: {
+                        id: true,
+                        username: true,
+                        firstName: true,
+                        lastName: true,
+                    }
+                },
+                images: true,
+            },
+            orderBy: desc(threads.createdAt),
+            limit,
+            offset,
+        });
 
-        const countResult = await db.select({ count: sql<number>`count(*)` })
+        if (threadsData.length === 0) {
+            return { results: [], page, limit, totalPages: 0, totalResults: 0, message: "User threads fetched successfully" };
+        }
+
+        const threadIds = threadsData.map(t => t.id);
+
+        const [likeCounts, commentCounts, subCounts, userLikes, userSubs] = await Promise.all([
+            db.select({ threadId: threadLikes.threadId, count: count() }).from(threadLikes).where(inArray(threadLikes.threadId, threadIds)).groupBy(threadLikes.threadId),
+            db.select({ threadId: comments.threadId, count: count() }).from(comments).where(inArray(comments.threadId, threadIds)).groupBy(comments.threadId),
+            db.select({ threadId: threadSubscribers.threadId, count: count() }).from(threadSubscribers).where(inArray(threadSubscribers.threadId, threadIds)).groupBy(threadSubscribers.threadId),
+            currentUserId ? db.select({ threadId: threadLikes.threadId }).from(threadLikes).where(and(eq(threadLikes.userId, currentUserId), inArray(threadLikes.threadId, threadIds))) : Promise.resolve([]),
+            currentUserId ? db.select({ threadId: threadSubscribers.threadId }).from(threadSubscribers).where(and(eq(threadSubscribers.userId, currentUserId), inArray(threadSubscribers.threadId, threadIds))) : Promise.resolve([]),
+        ]);
+
+        const results = threadsData.map(thread => ({
+            ...thread,
+            likeCount: likeCounts.find(c => c.threadId === thread.id)?.count || 0,
+            commentCount: commentCounts.find(c => c.threadId === thread.id)?.count || 0,
+            subscriberCount: subCounts.find(c => c.threadId === thread.id)?.count || 0,
+            isLiked: userLikes.some(l => l.threadId === thread.id),
+            isSubscribed: userSubs.some(s => s.threadId === thread.id),
+        }));
+
+        const countResult = await db.select({ count: count() })
             .from(threads)
             .where(and(eq(threads.authorId, authorId), eq(threads.isDeleted, false)));
-        const count = countResult[0]?.count ?? 0;
+        const totalResults = countResult[0]?.count ?? 0;
 
         return {
             results,
             page,
             limit,
-            totalPages: Math.ceil(count / limit),
-            totalResults: count,
+            totalPages: Math.ceil(totalResults / limit),
+            totalResults,
             message: "User threads fetched successfully"
         };
     } catch (error: any) {
-        return { results: [], ...serviceError(error, "Failed to fetch user threads") };
+        return { results: [], totalResults: 0, ...serviceError(error, "Failed to fetch user threads") };
     }
 };
 
-export const getThreadById = async (id: number) => {
+export const getThreadById = async (id: number, currentUserId?: number) => {
     try {
-        const [thread] = await db.select({
-            id: threads.id,
-            title: threads.title,
-            description: threads.description,
-            createdAt: threads.createdAt,
-            author: {
-                id: users.id,
-                username: users.username,
-                firstName: users.firstName,
-                lastName: users.lastName,
-            }
-        })
-            .from(threads)
-            .innerJoin(users, eq(threads.authorId, users.id))
-            .where(and(eq(threads.id, id), eq(threads.isDeleted, false)))
-            .limit(1);
+        const threadData = await db.query.threads.findFirst({
+            where: and(eq(threads.id, id), eq(threads.isDeleted, false)),
+            with: {
+                author: {
+                    columns: {
+                        id: true,
+                        username: true,
+                        firstName: true,
+                        lastName: true,
+                    }
+                },
+                images: true,
+                comments: {
+                    with: {
+                        author: {
+                            columns: {
+                                id: true,
+                                username: true,
+                                firstName: true,
+                                lastName: true,
+                            }
+                        }
+                    },
+                    orderBy: desc(comments.createdAt),
+                }
+            },
+        });
 
-        if (!thread) return { thread: null, message: "Thread not found" };
+        if (!threadData) return { thread: null, message: "Thread not found" };
 
-        const threadComments = await db.select({
-            id: comments.id,
-            content: comments.content,
-            createdAt: comments.createdAt,
-            author: {
-                id: users.id,
-                username: users.username,
-                firstName: users.firstName,
-                lastName: users.lastName,
-            }
-        })
-            .from(comments)
-            .innerJoin(users, eq(comments.authorId, users.id))
-            .where(eq(comments.threadId, id))
-            .orderBy(desc(comments.createdAt));
+        const [[likeCount], [commentCount], [subCount], [userLike], [userSub]] = await Promise.all([
+            db.select({ count: count() }).from(threadLikes).where(eq(threadLikes.threadId, id)),
+            db.select({ count: count() }).from(comments).where(eq(comments.threadId, id)),
+            db.select({ count: count() }).from(threadSubscribers).where(eq(threadSubscribers.threadId, id)),
+            currentUserId ? db.select({ id: threadLikes.id }).from(threadLikes).where(and(eq(threadLikes.threadId, id), eq(threadLikes.userId, currentUserId))).limit(1) : Promise.resolve([]),
+            currentUserId ? db.select({ id: threadSubscribers.id }).from(threadSubscribers).where(and(eq(threadSubscribers.threadId, id), eq(threadSubscribers.userId, currentUserId))).limit(1) : Promise.resolve([]),
+        ]);
 
-        return { thread: { ...thread, comments: threadComments }, message: "Thread fetched successfully" };
+        const thread = {
+            ...threadData,
+            likeCount: likeCount?.count || 0,
+            commentCount: commentCount?.count || 0,
+            subscriberCount: subCount?.count || 0,
+            isLiked: !!userLike,
+            isSubscribed: !!userSub,
+        };
+
+        return { thread, message: "Thread fetched successfully" };
     } catch (error: any) {
         return { thread: null, ...serviceError(error, "Failed to fetch thread") };
     }
@@ -215,5 +306,45 @@ export const getThreadSubscribers = async (threadId: number) => {
         return { subscribers, message: "Subscribers fetched successfully" };
     } catch (error: any) {
         return { subscribers: [], ...serviceError(error, "Failed to fetch subscribers") };
+    }
+};
+
+export const likeThread = async (like: NewThreadLike) => {
+    try {
+        const [newLike] = await db.insert(threadLikes).values(like).returning();
+        return { like: newLike, message: "Thread liked successfully" };
+    } catch (error: any) {
+        return { like: null, ...serviceError(error, "Failed to like thread") };
+    }
+};
+
+export const unlikeThread = async (threadId: number, userId: number) => {
+    try {
+        await db.delete(threadLikes).where(
+            and(
+                eq(threadLikes.threadId, threadId),
+                eq(threadLikes.userId, userId)
+            )
+        );
+        return { message: "Thread unliked successfully" };
+    } catch (error: any) {
+        return { ...serviceError(error, "Failed to unlike thread") };
+    }
+};
+
+export const getLike = async (threadId: number, userId: number) => {
+    try {
+        const [like] = await db.select()
+            .from(threadLikes)
+            .where(
+                and(
+                    eq(threadLikes.threadId, threadId),
+                    eq(threadLikes.userId, userId)
+                )
+            )
+            .limit(1);
+        return { like, message: like ? "Like found" : "No like found" };
+    } catch (error: any) {
+        return { like: null, ...serviceError(error, "Failed to get like") };
     }
 };

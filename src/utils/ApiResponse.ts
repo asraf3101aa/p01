@@ -10,6 +10,19 @@ class ApiResponse {
         });
     }
 
+    static paginate(res: Response, items: any[], meta: { totalItems: number, itemsPerPage: number, currentPage: number }, message: string | null = null) {
+        return this.success(res, {
+            items,
+            meta: {
+                totalItems: meta.totalItems,
+                itemCount: items.length,
+                itemsPerPage: meta.itemsPerPage,
+                totalPages: Math.ceil(meta.totalItems / meta.itemsPerPage),
+                currentPage: meta.currentPage
+            }
+        }, message);
+    }
+
     static fail(res: Response, message: string | null, statusCode: number = httpStatus.BAD_REQUEST, errors: any = null) {
         return res.status(statusCode).json({
             status: 'fail',

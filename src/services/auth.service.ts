@@ -7,7 +7,7 @@ import { serviceError } from '../utils/serviceError';
 export const loginUserWithEmailOrUsernameAndPassword = async (
     identifier: string,
     password: string
-): Promise<{ user: User | null; message: string; error?: any }> => {
+): Promise<{ user: User | null; message: string }> => {
     try {
         const { user } = await userService.getUserByIdentifier(identifier);
 

@@ -6,6 +6,7 @@ import ApiResponse from '../utils/ApiResponse';
 export const errorHandler = (err: any, _req: Request, res: Response, _next: NextFunction) => {
     let statusCode = err.statusCode || httpStatus.INTERNAL_SERVER_ERROR;
     let message = err.message || httpStatus[statusCode as keyof typeof httpStatus];
+    let errors = err.errors || null;
 
     if (err instanceof ApiError) {
         statusCode = err.statusCode;
@@ -14,8 +15,11 @@ export const errorHandler = (err: any, _req: Request, res: Response, _next: Next
     else if (err.message && err.message.includes('UNIQUE constraint failed')) {
         statusCode = httpStatus.BAD_REQUEST;
         const field = err.message.split('.').pop() || 'field';
-        message = `User with this ${field} already exists`;
+        message = 'Validation failed';
+        errors = {
+            [field]: [`User with this ${field} already exists`]
+        };
     }
 
-    ApiResponse.fail(res, message as string, statusCode);
+    ApiResponse.fail(res, message as string, statusCode, errors);
 };

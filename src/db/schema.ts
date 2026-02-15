@@ -1,5 +1,5 @@
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
-import { sql } from 'drizzle-orm';
+import { sql, relations } from 'drizzle-orm';
 
 export const users = sqliteTable('users', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -20,6 +20,13 @@ export const users = sqliteTable('users', {
     .default(sql`(unixepoch())`)
     .$onUpdate(() => new Date()),
 });
+
+export const usersRelations = relations(users, ({ many }) => ({
+  threads: many(threads),
+  comments: many(comments),
+  likes: many(threadLikes),
+  subscriptions: many(threadSubscribers),
+}));
 
 export const userLoggedInDevices = sqliteTable('user_logged_in_devices', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -74,7 +81,7 @@ export const userRoles = sqliteTable('user_roles', {
 export const threads = sqliteTable('threads', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   title: text('title').notNull(),
-  description: text('description'),
+  content: text('content'),
   authorId: integer('author_id')
     .references(() => users.id, { onDelete: 'cascade' })
     .notNull(),
@@ -86,6 +93,35 @@ export const threads = sqliteTable('threads', {
     .default(sql`(unixepoch())`)
     .$onUpdate(() => new Date()),
 });
+
+export const threadImages = sqliteTable('thread_images', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  path: text('path').notNull(),
+  threadId: integer('thread_id')
+    .references(() => threads.id, { onDelete: 'cascade' })
+    .notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .default(sql`(unixepoch())`)
+    .notNull(),
+});
+
+export const threadImagesRelations = relations(threadImages, ({ one }) => ({
+  thread: one(threads, {
+    fields: [threadImages.threadId],
+    references: [threads.id],
+  }),
+}));
+
+export const threadsRelations = relations(threads, ({ one, many }) => ({
+  author: one(users, {
+    fields: [threads.authorId],
+    references: [users.id],
+  }),
+  comments: many(comments),
+  likes: many(threadLikes),
+  subscribers: many(threadSubscribers),
+  images: many(threadImages),
+}));
 
 export const comments = sqliteTable('comments', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -104,6 +140,17 @@ export const comments = sqliteTable('comments', {
     .$onUpdate(() => new Date()),
 });
 
+export const commentsRelations = relations(comments, ({ one }) => ({
+  thread: one(threads, {
+    fields: [comments.threadId],
+    references: [threads.id],
+  }),
+  author: one(users, {
+    fields: [comments.authorId],
+    references: [users.id],
+  }),
+}));
+
 export const threadSubscribers = sqliteTable('thread_subscribers', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   threadId: integer('thread_id')
@@ -116,6 +163,41 @@ export const threadSubscribers = sqliteTable('thread_subscribers', {
     .default(sql`(unixepoch())`)
     .notNull(),
 });
+
+export const threadSubscribersRelations = relations(threadSubscribers, ({ one }) => ({
+  thread: one(threads, {
+    fields: [threadSubscribers.threadId],
+    references: [threads.id],
+  }),
+  user: one(users, {
+    fields: [threadSubscribers.userId],
+    references: [users.id],
+  }),
+}));
+
+export const threadLikes = sqliteTable('thread_likes', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  threadId: integer('thread_id')
+    .references(() => threads.id, { onDelete: 'cascade' })
+    .notNull(),
+  userId: integer('user_id')
+    .references(() => users.id, { onDelete: 'cascade' })
+    .notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .default(sql`(unixepoch())`)
+    .notNull(),
+});
+
+export const threadLikesRelations = relations(threadLikes, ({ one }) => ({
+  thread: one(threads, {
+    fields: [threadLikes.threadId],
+    references: [threads.id],
+  }),
+  user: one(users, {
+    fields: [threadLikes.userId],
+    references: [users.id],
+  }),
+}));
 
 export const notificationPreferences = sqliteTable('notification_preferences', {
   id: integer('id').primaryKey({ autoIncrement: true }),

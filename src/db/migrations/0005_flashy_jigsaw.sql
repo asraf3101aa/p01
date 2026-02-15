@@ -1,0 +1,1 @@
+ALTER TABLE `thread_images` RENAME COLUMN "url" TO "path";

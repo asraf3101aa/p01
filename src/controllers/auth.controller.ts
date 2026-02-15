@@ -20,6 +20,9 @@ export const login = catchAsync(async (req, res) => {
         return ApiResponse.fail(res, 'Incorrect email/username or password', httpStatus.UNAUTHORIZED);
     }
     const { tokens, message: tokenMessage } = await tokenService.generateAuthTokens(user.id);
+    if (!tokens) {
+        return ApiResponse.error(res, tokenMessage);
+    }
     return ApiResponse.success(res, { user, tokens }, tokenMessage);
 });
 
@@ -35,4 +38,3 @@ export const refreshTokens = catchAsync(async (req, res) => {
 export const getAuthUserProfile = catchAsync(async (req, res) => {
     return ApiResponse.success(res, req.user, 'User profile fetched successfully');
 });
-

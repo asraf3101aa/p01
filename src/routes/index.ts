@@ -16,7 +16,7 @@ const defaultRoutes = [
         route: userRoute,
     },
     {
-        path: '/threads',
+        path: '/thread',
         route: threadRoute,
     },
     {
