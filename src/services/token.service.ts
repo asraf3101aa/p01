@@ -2,9 +2,9 @@ import jwt from 'jsonwebtoken';
 import config from '../config';
 import { serviceError } from '../utils/serviceError';
 
-export const generateToken = (userId: number, expiresMinutes: number, secret: string): string => {
+export const generateToken = (sub: string | number, expiresMinutes: number, secret: string): string => {
     const payload = {
-        sub: userId,
+        sub,
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + (expiresMinutes * 60),
     };
@@ -43,5 +43,15 @@ export const generateAuthTokens = async (userId: number) => {
         };
     } catch (error: any) {
         return { tokens: null, ...serviceError(error, 'Token generation failed') };
+    }
+};
+
+export const generateVerificationToken = async (email: string) => {
+    try {
+        const expiresMinutes = 60;
+        const token = generateToken(email, expiresMinutes, config.jwt.accessTokenSecret);
+        return { token, message: 'Verification token generated successfully' };
+    } catch (error: any) {
+        return { token: null, ...serviceError(error, 'Failed to generate verification token') };
     }
 };

@@ -8,5 +8,6 @@ import { userValidation } from '../validations';
 const router = express.Router();
 
 router.get('/:id/profile', auth(p.user.read), validate(userValidation.getProfileById), userController.getProfileById);
+router.patch('/profile', auth(p.user.update), validate(userValidation.updateProfile), userController.updateProfile);
 
 export default router;

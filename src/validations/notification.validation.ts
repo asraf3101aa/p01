@@ -10,6 +10,6 @@ export const updatePreferences = {
 
 export const markAsRead = {
     params: z.object({
-        id: z.string().regex(/^\d+$/, 'Invalid notification ID'),
+        id: z.coerce.number({ message: 'Invalid notification ID' }),
     }),
 };

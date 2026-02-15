@@ -3,6 +3,10 @@ import { threadService, notificationService } from '../services';
 import ApiResponse from '../utils/ApiResponse';
 
 export const createThread = catchAsync(async (req, res) => {
+    if (!req.user.isEmailVerified) {
+        return ApiResponse.forbidden(res, 'Please verify your email before creating a thread');
+    }
+
     const { thread, message } = await threadService.createThread({
         ...req.body,
         authorId: req.user.id,
@@ -28,12 +32,13 @@ export const getThreads = catchAsync(async (req, res) => {
     }, message);
 });
 
-export const getAuthUserThreads = catchAsync(async (req, res) => {
+export const getUserThreads = catchAsync(async (req, res) => {
+    const userId = parseInt(req.params['id'] as string, 10);
     const page = parseInt(req.query['page'] as string, 10) || 1;
     const limit = parseInt(req.query['limit'] as string, 10) || 10;
-    const { results, totalResults, message } = await threadService.getThreadsByAuthorId(req.user.id, page, limit, req.user.id);
+    const { results, totalResults, message } = await threadService.getThreadsByAuthorId(userId, page, limit, req.user?.id);
     if (!results) {
-        return ApiResponse.error(res, message || 'Failed to fetch threads');
+        return ApiResponse.error(res, message || 'Failed to fetch user threads');
     }
     return ApiResponse.paginate(res, results, {
         totalItems: totalResults || 0,
@@ -77,7 +82,7 @@ export const createComment = catchAsync(async (req, res) => {
                 await notificationService.sendNotification(
                     sub.userId,
                     'New comment on thread',
-                    `${req.user.username} commented on "${thread.title}"`,
+                    `${req.user.username} commented on a thread you follow`,
                     'thread_comment'
                 );
             }
@@ -126,5 +131,16 @@ export const unlike = catchAsync(async (req, res) => {
     const userId = req.user.id;
 
     const { message } = await threadService.unlikeThread(threadId, userId);
+    return ApiResponse.success(res, null, message);
+});
+
+export const deleteThread = catchAsync(async (req, res) => {
+    const threadId = parseInt(req.params['id'] as string, 10);
+    const userId = req.user.id;
+
+    const { thread, message } = await threadService.deleteThread(threadId, userId);
+    if (!thread) {
+        return ApiResponse.error(res, message);
+    }
     return ApiResponse.success(res, null, message);
 });

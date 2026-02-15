@@ -4,22 +4,21 @@ import { NewThread, NewComment, NewThreadSubscriber, NewThreadLike } from '../mo
 import { eq, and, desc, count, inArray } from 'drizzle-orm';
 import { serviceError } from '../utils/serviceError';
 
-export const createThread = async (thread: NewThread & { imagePaths?: string[] }) => {
+export const createThread = async (thread: NewThread & { imagesPath?: string[] }) => {
     try {
-        const { imagePaths, ...threadDataWithPossibleId } = thread;
-        const { id, ...threadData } = threadDataWithPossibleId as any;
+        const { imagesPath, ...threadData } = thread;
         const newThread = await db.transaction(async (trx) => {
             const [createdThread] = await trx.insert(threads)
-                .values({ ...threadData })
+                .values(threadData)
                 .returning();
 
             if (!createdThread) {
                 throw new Error("Failed to create thread");
             }
 
-            if (imagePaths && imagePaths.length > 0) {
+            if (imagesPath?.length) {
                 await trx.insert(threadImages).values(
-                    imagePaths.map(path => ({
+                    imagesPath.map(path => ({
                         path,
                         threadId: createdThread.id
                     }))
@@ -54,13 +53,14 @@ export const getThreads = async (page: number = 1, limit: number = 10, currentUs
                     columns: {
                         id: true,
                         username: true,
-                        firstName: true,
-                        lastName: true,
+                        name: true,
                         isActive: true,
                         isDeleted: true,
                     }
                 },
-                images: true,
+                imagePaths: {
+                    columns: { id: true, path: true, createdAt: true }
+                },
             },
             orderBy: desc(threads.createdAt),
             limit,
@@ -142,11 +142,12 @@ export const getThreadsByAuthorId = async (authorId: number, page: number = 1, l
                     columns: {
                         id: true,
                         username: true,
-                        firstName: true,
-                        lastName: true,
+                        name: true,
                     }
                 },
-                images: true,
+                imagePaths: {
+                    columns: { id: true, path: true, createdAt: true }
+                },
             },
             orderBy: desc(threads.createdAt),
             limit,
@@ -203,19 +204,19 @@ export const getThreadById = async (id: number, currentUserId?: number) => {
                     columns: {
                         id: true,
                         username: true,
-                        firstName: true,
-                        lastName: true,
+                        name: true,
                     }
                 },
-                images: true,
+                imagePaths: {
+                    columns: { id: true, path: true, createdAt: true }
+                },
                 comments: {
                     with: {
                         author: {
                             columns: {
                                 id: true,
                                 username: true,
-                                firstName: true,
-                                lastName: true,
+                                name: true,
                             }
                         }
                     },
@@ -346,5 +347,18 @@ export const getLike = async (threadId: number, userId: number) => {
         return { like, message: like ? "Like found" : "No like found" };
     } catch (error: any) {
         return { like: null, ...serviceError(error, "Failed to get like") };
+    }
+};
+
+export const deleteThread = async (id: number, authorId: number) => {
+    try {
+        const [thread] = await db.update(threads)
+            .set({ isDeleted: true })
+            .where(and(eq(threads.id, id), eq(threads.authorId, authorId)))
+            .returning();
+        if (!thread) return { thread: null, message: "Thread not found or you're not the author" };
+        return { thread, message: "Thread deleted successfully" };
+    } catch (error: any) {
+        return { thread: null, ...serviceError(error, "Failed to delete thread") };
     }
 };

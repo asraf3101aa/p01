@@ -42,11 +42,13 @@ export const ROLES = {
         description: 'Standard user access',
         permissions: [
             permissions.user.read,
+            permissions.user.update,
             permissions.device.read,
             permissions.device.create,
             permissions.device.delete,
             permissions.thread.read,
             permissions.thread.create,
+            permissions.thread.delete,
             permissions.comment.read,
             permissions.comment.create,
             permissions.thread.subscribe,

@@ -5,20 +5,34 @@ export const users = sqliteTable('users', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   username: text('username').notNull().unique(),
   password: text('password').notNull(),
-  firstName: text('first_name', { length: 20 }).notNull(),
-  lastName: text('last_name', { length: 20 }),
-  email: text('email').notNull().unique(),
+  name: text('name', { length: 100 }).notNull(),
+  email: text('email').notNull(),
   isActive: integer('is_active', { mode: 'boolean' }).default(true).notNull(),
   dateJoined: integer('date_joined', { mode: 'timestamp' })
     .default(sql`(unixepoch())`)
     .notNull(),
 
-  phoneNumber: text('phone_number').unique(),
+  avatar: text('avatar'),
+  cover: text('cover'),
+  bio: text('bio'),
   isDeleted: integer('is_deleted', { mode: 'boolean' }).default(false).notNull(),
 
+  isEmailVerified: integer('is_email_verified', { mode: 'boolean' }).default(false).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' })
     .default(sql`(unixepoch())`)
     .$onUpdate(() => new Date()),
+});
+
+export const emailVerificationTokens = sqliteTable('email_verification_tokens', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  token: text('token').notNull(),
+  userId: integer('user_id')
+    .references(() => users.id, { onDelete: 'cascade' })
+    .notNull(),
+  expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .default(sql`(unixepoch())`)
+    .notNull(),
 });
 
 export const usersRelations = relations(users, ({ many }) => ({
@@ -80,8 +94,7 @@ export const userRoles = sqliteTable('user_roles', {
 
 export const threads = sqliteTable('threads', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  title: text('title').notNull(),
-  content: text('content'),
+  content: text('content').notNull(),
   authorId: integer('author_id')
     .references(() => users.id, { onDelete: 'cascade' })
     .notNull(),
@@ -120,7 +133,7 @@ export const threadsRelations = relations(threads, ({ one, many }) => ({
   comments: many(comments),
   likes: many(threadLikes),
   subscribers: many(threadSubscribers),
-  images: many(threadImages),
+  imagePaths: many(threadImages),
 }));
 
 export const comments = sqliteTable('comments', {

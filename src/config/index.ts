@@ -17,9 +17,12 @@ const envSchema = z.object({
     SMTP_PORT: z.coerce.number().default(587),
     SMTP_USER: z.string().default(''),
     SMTP_PASS: z.string().default(''),
-    SMTP_FROM: z.string().default(''),
+    FROM_EMAIL: z.email().default(''),
     JWT_ISSUER: z.string().default('pulse'),
     JWT_AUDIENCE: z.string().default('pulse'),
+    FRONTEND_URL: z.string().default('http://localhost:3000'),
+    RATE_LIMIT_WINDOW_MS: z.coerce.number().default(15 * 60 * 1000),
+    RATE_LIMIT_MAX_REQUESTS: z.coerce.number().default(100),
 });
 
 const envVars = envSchema.parse(process.env);
@@ -46,6 +49,12 @@ export default {
         port: envVars.SMTP_PORT,
         user: envVars.SMTP_USER,
         pass: envVars.SMTP_PASS,
-        from: envVars.SMTP_FROM,
+        from: envVars.FROM_EMAIL,
+        secure: envVars.SMTP_PORT === 465,
+    },
+    frontendUrl: envVars.FRONTEND_URL,
+    rateLimit: {
+        windowMs: envVars.RATE_LIMIT_WINDOW_MS,
+        max: envVars.RATE_LIMIT_MAX_REQUESTS,
     },
 };

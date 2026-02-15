@@ -4,6 +4,8 @@ import cors from 'cors';
 import compression from 'compression';
 import routes from './routes';
 import { errorHandler } from './middlewares/error';
+import { apiLimiter } from './middlewares/rateLimiter';
+import config from './config';
 
 const app = express();
 
@@ -21,6 +23,12 @@ app.use(compression());
 
 // enable cors
 app.use(cors());
+app.set('trust proxy', 1);
+
+// rate limiting
+if (config.env === 'production' || config.env === 'staging') {
+    app.use('/', apiLimiter);
+}
 
 // api routes
 app.use('/', routes);

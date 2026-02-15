@@ -10,3 +10,12 @@ export const getProfileById = catchAsync(async (req, res) => {
     }
     return ApiResponse.success(res, user, message);
 });
+
+export const updateProfile = catchAsync(async (req, res) => {
+    const userId = req.user.id;
+    const { user, message } = await userService.updateUserById(userId, req.body);
+    if (!user) {
+        return ApiResponse.error(res, message || 'Failed to update profile');
+    }
+    return ApiResponse.success(res, user, message);
+});

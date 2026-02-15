@@ -6,4 +6,5 @@ export * as rbacService from './rbac.service';
 export * as threadService from './thread.service';
 export * as notificationService from './notification.service';
 export * as seedService from './seed.service';
+export * as emailService from './email.service';
 

@@ -9,11 +9,13 @@ const router = express.Router();
 
 router.route('/')
     .post(auth(p.thread.create), validate(threadValidation.createThread), threadController.createThread)
-    .get(auth(p.thread.read), validate(threadValidation.getThreads), threadController.getAuthUserThreads);
+    .get(auth(p.thread.read), validate(threadValidation.getThreads), threadController.getThreads);
 
-router.get('/all', auth(p.thread.read), validate(threadValidation.getThreads), threadController.getThreads);
+router.get('/user/:id', auth(p.thread.read), validate(threadValidation.getUserThreads), threadController.getUserThreads);
 
-router.get('/:id', auth(p.thread.read), validate(threadValidation.getThread), threadController.getThread);
+router.route('/:id')
+    .get(auth(p.thread.read), validate(threadValidation.getThread), threadController.getThread)
+    .delete(auth(p.thread.delete), validate(threadValidation.deleteThread), threadController.deleteThread);
 
 router.post('/:id/comments', auth(p.comment.create), validate(threadValidation.createComment), threadController.createComment);
 

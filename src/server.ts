@@ -5,6 +5,7 @@ import logger from './config/logger';
 import { seedRBAC } from './services/rbac.service';
 
 import { notificationWorker } from './workers/notification.worker';
+import { emailWorker } from './workers/email.worker';
 
 let server: Server;
 
@@ -27,6 +28,9 @@ startServer();
 const exitHandler = async () => {
     if (notificationWorker) {
         await notificationWorker.close();
+    }
+    if (emailWorker) {
+        await emailWorker.close();
     }
     if (server) {
         server.close(() => {

@@ -1,7 +1,6 @@
 import { Worker, Job } from 'bullmq';
 import { redisConfig } from '../config/redis.config';
-import { notificationService, userService } from '../services';
-import { sendEmail } from '../utils/email';
+import { notificationService, userService, emailService } from '../services';
 import logger from '../config/logger';
 
 export const notificationWorker = new Worker(
@@ -23,7 +22,7 @@ export const notificationWorker = new Worker(
         if (prefs.emailEnabled) {
             const { user } = await userService.getUserById(userId);
             if (user && user.email) {
-                await sendEmail(user.email, title, message);
+                await emailService.sendEmail(user.email, title, message);
             }
         }
 
