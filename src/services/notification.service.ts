@@ -77,7 +77,6 @@ export const createInAppNotification = async (userId: number, title: string, mes
 
 export const sendNotification = async (userId: number, title: string, message: string, type: string) => {
     try {
-        // Dynamic import to avoid circular dependency
         const { addNotificationJob } = await import('../queues/notification.queue');
         await addNotificationJob({ userId, title, message, type });
         return { message: 'Notification job added successfully' };

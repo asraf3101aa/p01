@@ -11,13 +11,20 @@ router.route('/')
     .post(auth(p.thread.create), validate(threadValidation.createThread), threadController.createThread)
     .get(auth(p.thread.read), validate(threadValidation.getThreads), threadController.getThreads);
 
-router.get('/user/:id', auth(p.thread.read), validate(threadValidation.getUserThreads), threadController.getUserThreads);
+router.get('/user/:userId', auth(p.thread.read), validate(threadValidation.getUserThreads), threadController.getUserThreads);
 
 router.route('/:id')
     .get(auth(p.thread.read), validate(threadValidation.getThread), threadController.getThread)
+    .patch(auth(p.thread.update), validate(threadValidation.updateThread), threadController.updateThread)
     .delete(auth(p.thread.delete), validate(threadValidation.deleteThread), threadController.deleteThread);
 
-router.post('/:id/comments', auth(p.comment.create), validate(threadValidation.createComment), threadController.createComment);
+router.route('/:id/comments')
+    .post(auth(p.comment.create), validate(threadValidation.createComment), threadController.createComment)
+    .get(auth(p.comment.read), validate(threadValidation.getThreadComments), threadController.getThreadComments);
+
+router.route('/:id/comments/:commentId')
+    .patch(auth(p.comment.update), validate(threadValidation.updateComment), threadController.updateComment)
+    .delete(auth(p.comment.delete), validate(threadValidation.deleteComment), threadController.deleteComment);
 
 router.route('/:id/subscribe')
     .post(auth(p.thread.subscribe), validate(threadValidation.subscribe), threadController.subscribe)

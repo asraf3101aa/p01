@@ -35,7 +35,7 @@ export const seedDummyData = async () => {
                 password: hashedPassword,
                 name,
                 bio: faker.lorem.sentence(),
-                avatar: faker.image.avatar(),
+                avatarPath: faker.image.avatar(),
                 isEmailVerified: true,
             }).returning();
 

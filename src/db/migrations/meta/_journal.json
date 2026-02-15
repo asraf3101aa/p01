@@ -78,6 +78,13 @@
       "when": 1771150400987,
       "tag": "0010_superb_luckman",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1771177112606,
+      "tag": "0011_futuristic_karnak",
+      "breakpoints": true
     }
   ]
 }

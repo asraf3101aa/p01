@@ -64,7 +64,7 @@ export const getUserById = async (id: number) => {
     const [user] = await db
       .select()
       .from(users)
-      .where(and(eq(users.id, id), eq(users.isDeleted, false)))
+      .where(and(eq(users.id, id), eq(users.isDeleted, false), eq(users.isActive, true)))
       .limit(1);
 
     if (!user) return { user: null, message: 'User not found' };

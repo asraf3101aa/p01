@@ -12,8 +12,8 @@ export const users = sqliteTable('users', {
     .default(sql`(unixepoch())`)
     .notNull(),
 
-  avatar: text('avatar'),
-  cover: text('cover'),
+  avatarPath: text('avatar_path'),
+  coverPath: text('cover_path'),
   bio: text('bio'),
   isDeleted: integer('is_deleted', { mode: 'boolean' }).default(false).notNull(),
 

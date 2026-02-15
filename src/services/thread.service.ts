@@ -54,8 +54,7 @@ export const getThreads = async (page: number = 1, limit: number = 10, currentUs
                         id: true,
                         username: true,
                         name: true,
-                        isActive: true,
-                        isDeleted: true,
+                        avatarPath: true,
                     }
                 },
                 imagePaths: {
@@ -109,6 +108,7 @@ export const getThreads = async (page: number = 1, limit: number = 10, currentUs
 
         const results = threadsData.map(thread => ({
             ...thread,
+            isEdited: !!(thread.updatedAt && thread.updatedAt > thread.createdAt),
             likeCount: likeCountMap.get(thread.id) || 0,
             commentCount: commentCountMap.get(thread.id) || 0,
             subscriberCount: subCountMap.get(thread.id) || 0,
@@ -143,6 +143,8 @@ export const getThreadsByAuthorId = async (authorId: number, page: number = 1, l
                         id: true,
                         username: true,
                         name: true,
+                        avatarPath: true,
+
                     }
                 },
                 imagePaths: {
@@ -170,6 +172,7 @@ export const getThreadsByAuthorId = async (authorId: number, page: number = 1, l
 
         const results = threadsData.map(thread => ({
             ...thread,
+            isEdited: !!(thread.updatedAt && thread.updatedAt > thread.createdAt),
             likeCount: likeCounts.find(c => c.threadId === thread.id)?.count || 0,
             commentCount: commentCounts.find(c => c.threadId === thread.id)?.count || 0,
             subscriberCount: subCounts.find(c => c.threadId === thread.id)?.count || 0,
@@ -205,6 +208,7 @@ export const getThreadById = async (id: number, currentUserId?: number) => {
                         id: true,
                         username: true,
                         name: true,
+                        avatarPath: true,
                     }
                 },
                 imagePaths: {
@@ -217,6 +221,7 @@ export const getThreadById = async (id: number, currentUserId?: number) => {
                                 id: true,
                                 username: true,
                                 name: true,
+                                avatarPath: true,
                             }
                         }
                     },
@@ -237,6 +242,11 @@ export const getThreadById = async (id: number, currentUserId?: number) => {
 
         const thread = {
             ...threadData,
+            isEdited: !!(threadData.updatedAt && threadData.updatedAt > threadData.createdAt),
+            comments: threadData.comments.map(c => ({
+                ...c,
+                isEdited: !!(c.updatedAt && c.updatedAt > c.createdAt),
+            })),
             likeCount: likeCount?.count || 0,
             commentCount: commentCount?.count || 0,
             subscriberCount: subCount?.count || 0,
@@ -256,6 +266,49 @@ export const createComment = async (comment: NewComment) => {
         return { comment: newComment, message: "Comment added successfully" };
     } catch (error: any) {
         return { comment: null, ...serviceError(error, "Failed to add comment") };
+    }
+};
+
+export const getThreadComments = async (threadId: number, page: number = 1, limit: number = 10) => {
+    try {
+        const offset = (page - 1) * limit;
+
+        const results = await db.query.comments.findMany({
+            where: eq(comments.threadId, threadId),
+            with: {
+                author: {
+                    columns: {
+                        id: true,
+                        username: true,
+                        name: true,
+                        avatarPath: true,
+                    }
+                }
+            },
+            orderBy: desc(comments.createdAt),
+            limit,
+            offset,
+        });
+
+        const countResult = await db.select({ count: count() })
+            .from(comments)
+            .where(eq(comments.threadId, threadId));
+
+        const totalResults = countResult[0]?.count ?? 0;
+
+        return {
+            results: results.map(c => ({
+                ...c,
+                isEdited: !!(c.updatedAt && c.updatedAt > c.createdAt),
+            })),
+            totalResults,
+            page,
+            limit,
+            totalPages: Math.ceil(totalResults / limit),
+            message: "Comments fetched successfully"
+        };
+    } catch (error: any) {
+        return { results: null, totalResults: 0, ...serviceError(error, "Failed to fetch comments") };
     }
 };
 
@@ -354,11 +407,49 @@ export const deleteThread = async (id: number, authorId: number) => {
     try {
         const [thread] = await db.update(threads)
             .set({ isDeleted: true })
-            .where(and(eq(threads.id, id), eq(threads.authorId, authorId)))
+            .where(and(eq(threads.id, id), eq(threads.isDeleted, false), eq(threads.authorId, authorId)))
             .returning();
         if (!thread) return { thread: null, message: "Thread not found or you're not the author" };
         return { thread, message: "Thread deleted successfully" };
     } catch (error: any) {
         return { thread: null, ...serviceError(error, "Failed to delete thread") };
+    }
+};
+
+export const updateThread = async (id: number, authorId: number, updateData: { content?: string }) => {
+    try {
+        const [thread] = await db.update(threads)
+            .set(updateData)
+            .where(and(eq(threads.id, id), eq(threads.isDeleted, false), eq(threads.authorId, authorId)))
+            .returning();
+        if (!thread) return { thread: null, message: "Thread not found or you're not the author" };
+        return { thread, message: "Thread updated successfully" };
+    } catch (error: any) {
+        return { thread: null, ...serviceError(error, "Failed to update thread") };
+    }
+};
+
+export const updateComment = async (id: number, authorId: number, updateData: { content?: string }) => {
+    try {
+        const [comment] = await db.update(comments)
+            .set(updateData)
+            .where(and(eq(comments.id, id), eq(comments.authorId, authorId)))
+            .returning();
+        if (!comment) return { comment: null, message: "Comment not found or you're not the author" };
+        return { comment, message: "Comment updated successfully" };
+    } catch (error: any) {
+        return { comment: null, ...serviceError(error, "Failed to update comment") };
+    }
+};
+
+export const deleteComment = async (id: number, authorId: number) => {
+    try {
+        const [comment] = await db.delete(comments)
+            .where(and(eq(comments.id, id), eq(comments.authorId, authorId)))
+            .returning();
+        if (!comment) return { comment: null, message: "Comment not found or you're not the author" };
+        return { comment, message: "Comment deleted successfully" };
+    } catch (error: any) {
+        return { comment: null, ...serviceError(error, "Failed to delete comment") };
     }
 };
